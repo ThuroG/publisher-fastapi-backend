@@ -1,0 +1,66 @@
+version: '3.8' # Definiert die Version der Docker Compose Dateisyntax
+
+services:
+  # Definiert den PostgreSQL-Datenbankdienst
+  db:
+    image: postgres:15-alpine # Verwendet das offizielle PostgreSQL 15 Image (alpine ist eine schlanke Version)
+    container_name: postgres_db_publisher # Name des Containers
+    restart: always # Startet den Container immer neu, falls er stoppt (außer bei manuellem Stopp)
+    environment:
+      # Umgebungsvariablen für die PostgreSQL-Konfiguration
+      # Ändere diese Werte nach Bedarf, besonders das Passwort!
+      POSTGRES_USER: postgres 
+      POSTGRES_PASSWORD: supersecretpassword 
+      POSTGRES_DB: publisher
+    ports:
+      # Mappt den Port 5432 des Containers auf den Port 5432 des Host-Systems
+      # Format: "HOST_PORT:CONTAINER_PORT"
+      # Wenn Port 5432 auf deinem Host bereits belegt ist, ändere den HOST_PORT (z.B. "5433:5432")
+      - "5432:5432" 
+    volumes:
+      # Definiert ein Volume, um die Datenbankdaten persistent zu speichern
+      # 'postgres_data' ist der Name des benannten Volumes (wird von Docker verwaltet)
+      # '/var/lib/postgresql/data' ist der Pfad im Container, wo PostgreSQL seine Daten speichert
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Überprüft den Zustand des Datenbankcontainers
+      test: ["CMD-SHELL", "pg_isready --username=postgres --dbname=publisher"]
+      interval: 10s # Intervall zwischen den Healthchecks
+      timeout: 5s # Zeitlimit für einen Healthcheck
+      retries: 5 # Anzahl der Wiederholungsversuche bei Fehlschlag
+
+# Definiert den pgAdmin-Dienst
+  pgadmin:
+    image: dpage/pgadmin4:latest # Verwendet das offizielle pgAdmin 4 Image
+    container_name: pgadmin_publisher # Name des pgAdmin Containers
+    restart: always
+    environment:
+      # Standard-Login für pgAdmin
+      # Ändere diese Werte!
+      PGADMIN_DEFAULT_EMAIL: admin@example.com 
+      PGADMIN_DEFAULT_PASSWORD: adminpassword 
+    ports:
+      # Mappt Port 5050 des Host-Systems auf Port 80 im pgAdmin-Container
+      # pgAdmin ist dann unter http://localhost:5050 erreichbar
+      - "5050:80"
+    volumes:
+      # Definiert ein Volume, um die pgAdmin-Daten (Server-Konfigurationen etc.) persistent zu speichern
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      db: # Stellt sicher, dass der db-Dienst gestartet wird, bevor pgAdmin startet
+        condition: service_healthy # Wartet, bis der db-Dienst als "healthy" gemeldet wird (basierend auf dem healthcheck)
+    networks: # Stellt sicher, dass pgAdmin im selben Netzwerk wie die Datenbank ist
+      - default
+
+# Definiert benannte Volumes, die von den Diensten verwendet werden können
+volumes:
+  postgres_data: # Das Volume für die persistenten Daten der PostgreSQL-Datenbank
+  pgadmin_data:  # Das Volume für die persistenten Daten von pgAdmin
+
+
+# Optional: Netzwerkdefinition, wenn du mehrere Dienste hast und diese
+# in einem benutzerdefinierten Netzwerk kommunizieren sollen.
+# Für diesen Fall (nur DB) ist es nicht zwingend notwendig, aber gute Praxis.
+networks:
+  default:
+    driver: bridge
