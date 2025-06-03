@@ -8,3 +8,4 @@ Based on the KodeKloud Course: https://notes.kodekloud.com/docs/Python-API-Devel
 Todo:
 - Add Servers automatically to Pgadmin with server.json: https://www.pgadmin.org/docs/pgadmin4/latest/container_deployment.html
 - Use secrets for password / vault
+- Pagination with DB (LIMIT and OFFSET)
