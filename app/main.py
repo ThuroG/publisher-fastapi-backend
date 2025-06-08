@@ -1,8 +1,13 @@
 from random import randrange
+import time
 from typing import Optional
 from fastapi import FastAPI, Response, status, HTTPException
 from fastapi.params import Body
 from pydantic import BaseModel
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
+
 
 app = FastAPI()
 
@@ -10,11 +15,25 @@ app = FastAPI()
 class Post(BaseModel):
     title: str
     content: str
-    published: bool = True  # Default value for published is True
+    published: bool = False  # Default value for published is True
     rating: Optional[int] = None  # Optional field with no default value
 
-my_posts = [{"title": "Post 1", "content": "Content of post 1", "published": True, "rating": 5, "id": 1},
-           {"title": "Post 2", "content": "Content of post 2", "published": False, "rating": 3, "id": 2}]
+while True:
+    try:
+        conn = psycopg2.connect(host="localhost", database="fastapi", user="postgres", password="supersecretpassword", cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        print("Connected to the database successfully")
+        break
+    except Exception as e:
+        print(f"Failed to connect to the database: {e}")
+        time.sleep(2)  # Wait for 2 seconds before retrying
+
+# Initialize an empty list to store posts
+my_posts = []  # This will hold the posts in memory; 
+
+# For Debugging purpose
+#my_posts = [{"title": "Post 1", "content": "Content of post 1", "published": True, "rating": 5, "id": 1},
+ #          {"title": "Post 2", "content": "Content of post 2", "published": False, "rating": 3, "id": 2}]
 
 def find_post(id: int):
     # Helper function to find a post by ID
@@ -30,17 +49,27 @@ async def root():
 
 @app.get("/posts")
 def get_posts():
+    cursor.execute("""SELECT * FROM posts""")
+    my_posts = cursor.fetchall()  # Fetch all posts from the database
+    # If there are no posts, return an empty list
     return {"data": my_posts}
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 def create_posts(post: Post):
-    post_dict = post.model_dump()
-    post_dict['id'] = randrange(1, 1000000)  # Generate a random ID for the post
+    # NOTNEEDEDANYMORE: post_dict['id'] = randrange(1, 1000000)  # Generate a random ID for the post
+    # Insert the new post into the database
+    cursor.execute(
+        """INSERT INTO posts (title, content, published, rating) VALUES (%s, %s, %s, %s) RETURNING *""",
+        (post.title, post.content, post.published, post.rating)
+    )
+    new_post = cursor.fetchone()  # Fetch the newly created post from the database
     # Add the new post to the list of posts
-    my_posts.append(post_dict)
+    my_posts.append(post)
     # Here you would typically save the post to a database
     # return {"new_post": f"title {new_post['title']} and content {new_post['content']}"} #f String allows you to use variables inside a string
-    return {"data": my_posts}  # Return the list of posts with a 201 Created status code
+    
+    conn.commit()  # Commit the transaction to save changes to the database
+    return {"data": new_post}  # Return the list of posts with a 201 Created status code
 
 # IMPORTANT ORDER: This has to be before get id posts because otherwise /post/{id} will match /posts/latest which is not what we want
 @app.get("/posts/latest", status_code=status.HTTP_200_OK)
@@ -53,13 +82,18 @@ def get_latest_post(response: Response):
         # return {"error": "No posts available"}
     
     # Return the latest post (the last one in the list)
-    latest_post = my_posts[-1]
+    # NOT USED ANYMORE latest_post = my_posts[-1]
+    cursor.execute("""SELECT * FROM posts order by created_at DESC LIMIT 1;""")  # Fetch the latest post from the database
+    # The DISTINCT ON clause is used to get the latest post based on the created_at timestamp
+    latest_post = cursor.fetchall()  # Fetch the post with the given ID from the database
     return {"data": latest_post}
 
 @app.get("/posts/{id}", status_code=status.HTTP_200_OK)
 def get_post(id: int, response: Response):
+    cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id)))
+    post = cursor.fetchone()  # Fetch the post with the given ID from the database
     # Find the post with the given ID
-    post = find_post(id)
+    # NOTUSEDANYMORE post = find_post(id)
     # If the post is found, return it; otherwise, return a 404 Not Found response
     if post:
         return {"data": post}

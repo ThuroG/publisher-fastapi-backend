@@ -4,14 +4,14 @@ services:
   # Definiert den PostgreSQL-Datenbankdienst
   db:
     image: postgres:15-alpine # Verwendet das offizielle PostgreSQL 15 Image (alpine ist eine schlanke Version)
-    container_name: postgres_db_publisher # Name des Containers
+    container_name: postgres_db_fastapi # Name des Containers
     restart: always # Startet den Container immer neu, falls er stoppt (außer bei manuellem Stopp)
     environment:
       # Umgebungsvariablen für die PostgreSQL-Konfiguration
       # Ändere diese Werte nach Bedarf, besonders das Passwort!
       POSTGRES_USER: postgres 
       POSTGRES_PASSWORD: supersecretpassword 
-      POSTGRES_DB: publisher
+      POSTGRES_DB: fastapi
     ports:
       # Mappt den Port 5432 des Containers auf den Port 5432 des Host-Systems
       # Format: "HOST_PORT:CONTAINER_PORT"
@@ -24,7 +24,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       # Überprüft den Zustand des Datenbankcontainers
-      test: ["CMD-SHELL", "pg_isready --username=postgres --dbname=publisher"]
+      test: ["CMD-SHELL", "pg_isready --username=postgres --dbname=fastapi"]
       interval: 10s # Intervall zwischen den Healthchecks
       timeout: 5s # Zeitlimit für einen Healthcheck
       retries: 5 # Anzahl der Wiederholungsversuche bei Fehlschlag
