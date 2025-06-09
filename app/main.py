@@ -105,10 +105,14 @@ def get_post(id: int, response: Response):
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int, response: Response):
     # Find the post with the given ID
-    post = find_post(id)
+    # NOT USED ANYMORE post = find_post(id)
     # If the post is found, delete it; otherwise, return a 404 Not Found response
+    cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING *""", (str(id),))
+    post = cursor.fetchone()  # Fetch the post with the given ID from the database
+    conn.commit()
+
     if post:
-        my_posts.remove(post)   # Remove the post from the list
+        # NOT NEEDED ANYMORE my_posts.remove(post)   # Remove the post from the list
         # ALTERNATIVE: my_posts.pop(find_post_index(id))  # Remove the post by index as shown in KodeKloud
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     else:
@@ -118,13 +122,18 @@ def delete_post(id: int, response: Response):
 @app.put("/posts/{id}", status_code=status.HTTP_200_OK)
 def update_post(id: int, post: Post, response: Response):
     # Find the post with the given ID
-    post_index = find_post_index(id)
+    # NOT NEEDED ANYMORE post_index = find_post_index(id)
+
+    cursor.execute("""UPDATE posts SET title = %s, content = %s, published = %s, rating = %s WHERE id = %s RETURNING *""",
+                   (post.title, post.content, post.published, post.rating, str(id)))
+    post = cursor.fetchone()
+    conn.commit()
     # If the post is found, update it; otherwise, return a 404 Not Found response
-    if post_index is not None:
-        updated_post = post.model_dump()    # Convert the Pydantic model to a dictionary
-        updated_post['id'] = id
-        my_posts[post_index] = updated_post  # Update the post in the list
-        return {"data": updated_post}
+    if post is not None:
+       # updated_post = post.model_dump()    # Convert the Pydantic model to a dictionary
+       # updated_post['id'] = id
+       # my_posts[post_index] = updated_post  # Update the post in the list
+        return {"data": post}
     else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id: {id} was not found")
        
